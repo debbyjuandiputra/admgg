@@ -55,7 +55,7 @@
   .badge{background:var(--red);color:#fff;border-radius:12px;padding:2px 8px;font-size:12px;font-weight:600;}
   .badge-outline{border:1px solid var(--gray-300);color:var(--text-soft);border-radius:12px;padding:2px 8px;font-size:11px;font-weight:600;}
   .badge-pending{background:#fff4e5;color:#b8720b;}
-  .badge-sent{background:#e8f5e9;color:#2e7d32;}
+  .badge-sent,.badge-success{background:#e8f5e9;color:#2e7d32;}
   .badge-failed{background:#fdecea;color:var(--red-dark);}
 
   .form-row{display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;}
@@ -133,7 +133,7 @@
     <div class="login-pane" id="pane-id">
       <div class="field">
         <label>ID Admin</label>
-        <input type="text" id="inp-custom-id" placeholder="cth. 7K2PLXA" autocomplete="off" maxlength="7" style="text-transform:uppercase;letter-spacing:2px;font-weight:700;" />
+        <input type="text" id="inp-custom-id" placeholder="ABC1234" autocomplete="off" maxlength="7" style="text-transform:uppercase;letter-spacing:2px;" />
         <div class="field-hint">ID unik 7 karakter yang diberikan setelah login pertama kali.</div>
       </div>
       <button class="btn-primary" id="btn-login-id" onclick="handleLoginById()">Masuk</button>
@@ -228,6 +228,29 @@
       </div>
     </div>
 
+    <!-- KELOLA ANGGOTA GRUP -->
+    <div class="panel">
+      <div class="card">
+        <div class="card-header">
+          <div>
+            <h3>Kelola Anggota Grup</h3>
+            <p>Tambahkan atau keluarkan nomor dari grup. Diproses bot dalam ~20 detik.</p>
+          </div>
+        </div>
+        <div class="form-row" style="margin-bottom:8px;">
+          <div class="field"><label>Nomor WhatsApp</label><input type="text" id="member-phone" placeholder="628xxxxxxxxx" inputmode="numeric" autocomplete="off" /></div>
+          <button class="btn-secondary" onclick="queueMemberAction('add')">Tambah</button>
+          <button class="btn-secondary" style="background:var(--red-dark);" onclick="queueMemberAction('kick')">Kick</button>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Nomor</th><th>Aksi</th><th>Status</th><th>Keterangan</th></tr></thead>
+            <tbody id="member-action-table-body"><tr><td colspan="4" class="empty-msg">Memuat data…</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
     <!-- PESAN TERJADWAL -->
     <div class="panel">
       <div class="card">
@@ -261,13 +284,6 @@
 <div id="toast"></div>
 
 <script>
-  // const path = require('path');
-  // require('dotenv').config({
-  //   path: path.join(__dirname, '.env')
-  // });
-  // const SUPABASE_URL = process.env.SUPABASE_URL;
-  // const SUPABASE_KEY = process.env.SUPABASE_KEY;
-  
   const SUPABASE_URL = "https://hgvsbbglmjrglcllownf.supabase.co";
   const SUPABASE_KEY = "sb_publishable_Z1IyqYnsq-5_KrgztBOB7A_RKQXiV3M";
 
@@ -438,6 +454,9 @@
     loadSchedule();
     loadBadWords();
     loadScheduledMessages();
+    loadMemberActions();
+    clearInterval(window._memberActionPoll);
+    window._memberActionPoll = setInterval(loadMemberActions, 20000);
     const nowWIB = new Date(Date.now() + 7 * 3600 * 1000);
     document.getElementById('new-message-date').value = nowWIB.toISOString().slice(0, 10);
   }
@@ -604,6 +623,57 @@
     } catch (err) {
       console.error(err);
       showToast('Gagal menghapus kata.');
+    }
+  }
+
+  // ═══════════════ KELOLA ANGGOTA GRUP ════════════════════════
+  function actionLabel(a) { return { add: 'Tambah', kick: 'Kick' }[a] || a; }
+  function memberStatusLabel(s) { return { pending: 'Diproses', success: 'Berhasil', failed: 'Gagal' }[s] || s; }
+
+  async function loadMemberActions() {
+    const tbody = document.getElementById('member-action-table-body');
+    try {
+      const rows = await sbFetch(
+        `group_actions?group_id=eq.${encodeURIComponent(currentAdmin.group)}&order=created_at.desc&limit=30`
+      );
+      if (!rows.length) { tbody.innerHTML = '<tr><td colspan="4" class="empty-msg">Belum ada aktivitas.</td></tr>'; return; }
+      tbody.innerHTML = rows.map(r => `
+        <tr>
+          <td>${escapeHtml(r.phone)}</td>
+          <td>${actionLabel(r.action)}</td>
+          <td><span class="badge-outline badge-${r.status}">${memberStatusLabel(r.status)}</span></td>
+          <td style="max-width:220px;white-space:pre-wrap;">${r.error ? escapeHtml(r.error) : '—'}</td>
+        </tr>`).join('');
+    } catch (err) {
+      console.error(err);
+      tbody.innerHTML = '<tr><td colspan="4" class="empty-msg">Gagal memuat data.</td></tr>';
+    }
+  }
+
+  async function queueMemberAction(action) {
+    const input = document.getElementById('member-phone');
+    const digits = input.value.trim().replace(/[^0-9]/g, '');
+    if (!digits) { showToast('Masukkan nomor WhatsApp terlebih dahulu.'); return; }
+    if (!digits.startsWith('62')) { showToast('Nomor harus diawali 62 (contoh: 628123456789).'); return; }
+    if (digits.length < 10 || digits.length > 15) { showToast('Nomor sepertinya tidak valid.'); return; }
+
+    try {
+      await sbFetch('group_actions', {
+        method: 'POST',
+        body: JSON.stringify({
+          group_id: currentAdmin.group,
+          phone: digits,
+          action,
+          status: 'pending',
+          created_by: currentAdmin.phone
+        })
+      });
+      input.value = '';
+      showToast(action === 'add' ? 'Permintaan tambah anggota dikirim.' : 'Permintaan kick dikirim.');
+      loadMemberActions();
+    } catch (err) {
+      console.error(err);
+      showToast('Gagal mengirim permintaan.');
     }
   }
 
