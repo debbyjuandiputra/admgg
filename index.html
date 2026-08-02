@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>WA Group Guard — Admin</title>
+<title>GroupGuard — Admin</title>
 <style>
   *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
   :root{
@@ -64,6 +64,10 @@
   .btn-secondary:hover{background:var(--red-dark);}
   .btn-secondary:disabled{background:var(--gray-300);cursor:not-allowed;}
 
+  /* Hapus semua button */
+  .btn-clear-all{padding:6px 12px;background:none;border:1.5px solid var(--gray-300);border-radius:8px;font-size:12px;font-weight:600;color:var(--text-soft);cursor:pointer;transition:border-color .2s,color .2s,background .2s;white-space:nowrap;}
+  .btn-clear-all:hover{border-color:var(--red);color:var(--red);background:#fdecea;}
+
   .table-wrap{overflow-x:auto;margin-top:16px;}
   table{width:100%;border-collapse:collapse;font-size:13px;}
   table th,table td{border-bottom:1px solid var(--gray-100);padding:10px 8px;text-align:left;}
@@ -110,8 +114,7 @@
 
 <div id="login-screen">
   <div class="login-card">
-    <div class="login-logo"><h1>WA Group Guard</h1></div>
-    <div class="login-sub">Masuk dengan ID grup + nomor admin, atau dengan ID Admin unikmu.</div>
+    <div class="login-logo"><h1>Group Guard</h1></div>
 
     <div class="login-tabs">
       <div class="login-tab active" id="tab-standard" onclick="switchLoginTab('standard')">Grup + Nomor</div>
@@ -134,7 +137,6 @@
       <div class="field">
         <label>ID Admin</label>
         <input type="text" id="inp-custom-id" placeholder="ABC1234" autocomplete="off" maxlength="7" style="text-transform:uppercase;letter-spacing:2px;" />
-        <div class="field-hint">ID unik 7 karakter yang diberikan setelah login pertama kali.</div>
       </div>
       <button class="btn-primary" id="btn-login-id" onclick="handleLoginById()">Masuk</button>
     </div>
@@ -162,12 +164,11 @@
         <div class="card-header">
           <div>
             <h3>ID Admin Saya</h3>
-            <p>Bisa dipakai untuk login cepat. ID tidak bisa diedit manual — tekan "Revoke ID" untuk mengganti dengan ID acak baru.</p>
           </div>
         </div>
         <div class="id-row">
           <input type="text" id="my-custom-id" maxlength="7" placeholder="Memuat…" readonly />
-          <button class="btn-secondary" id="btn-revoke-id" onclick="revokeCustomId()">Revoke ID</button>
+          <button class="btn-secondary" id="btn-revoke-id" onclick="revokeCustomId()">Revoke</button>
         </div>
         <div class="id-status" id="id-status"></div>
       </div>
@@ -178,8 +179,7 @@
       <div class="card">
         <div class="card-header">
           <div>
-            <h3>Jadwal Grup</h3>
-            <p>Jam ditampilkan dan disimpan dalam WIB (Asia/Jakarta).</p>
+            <h3>Jadwal Grup (WIB)</h3>
           </div>
         </div>
         <div class="schedule-grid">
@@ -201,7 +201,7 @@
           </div>
         </div>
         <div class="current-sched" id="current-sched">Memuat jadwal…</div>
-        <button class="btn-secondary" style="margin-top:16px;" onclick="saveSchedule()">Simpan Jadwal</button>
+        <button class="btn-secondary" style="margin-top:16px;" onclick="saveSchedule()">Simpan</button>
       </div>
     </div>
 
@@ -211,11 +211,10 @@
         <div class="card-header">
           <div>
             <h3>Kata Kasar <span class="badge" id="badword-count">0</span></h3>
-            <p>Daftar kata yang otomatis difilter bot di grup.</p>
           </div>
         </div>
         <div class="form-row" style="margin-bottom:8px;">
-          <div class="field"><label>Tambah Kata</label><input type="text" id="new-badword" placeholder="kata baru" /></div>
+          <div class="field"><label>Tambah Kata</label><input type="text" id="new-badword" /></div>
           <button class="btn-secondary" onclick="addBadWord()">Tambah</button>
         </div>
         <div class="table-wrap">
@@ -234,8 +233,9 @@
         <div class="card-header">
           <div>
             <h3>Kelola Anggota Grup</h3>
-            <p>Tambahkan atau keluarkan nomor dari grup. Diproses bot dalam ~20 detik.</p>
+            <p>Diproses dalam ~20 detik.</p>
           </div>
+          <button class="btn-clear-all" onclick="clearAllMemberActions()">Hapus Riwayat</button>
         </div>
         <div class="form-row" style="margin-bottom:8px;">
           <div class="field"><label>Nomor WhatsApp</label><input type="text" id="member-phone" placeholder="628xxxxxxxxx" inputmode="numeric" autocomplete="off" /></div>
@@ -244,8 +244,8 @@
         </div>
         <div class="table-wrap">
           <table>
-            <thead><tr><th>Nomor</th><th>Aksi</th><th>Status</th><th>Keterangan</th></tr></thead>
-            <tbody id="member-action-table-body"><tr><td colspan="4" class="empty-msg">Memuat data…</td></tr></tbody>
+            <thead><tr><th>Nomor</th><th>Aksi</th><th>Status</th><th>Keterangan</th><th style="width:50px;">Hapus</th></tr></thead>
+            <tbody id="member-action-table-body"><tr><td colspan="5" class="empty-msg">Memuat data…</td></tr></tbody>
           </table>
         </div>
       </div>
@@ -257,12 +257,12 @@
         <div class="card-header">
           <div>
             <h3>Kirim Pesan Terjadwal</h3>
-            <p>Pesan akan otomatis dikirim bot ke grup pada waktu WIB yang ditentukan.</p>
           </div>
+          <button class="btn-clear-all" onclick="clearAllScheduledMessages()">Hapus Riwayat</button>
         </div>
         <div class="field">
           <label>Pesan</label>
-          <textarea id="new-message" rows="3" placeholder="Tulis pesan yang akan dikirim ke grup…"></textarea>
+          <textarea id="new-message" rows="3"></textarea>
         </div>
         <div class="form-row" style="margin-bottom:8px;">
           <div class="field"><label>Tanggal</label><input type="date" id="new-message-date" /></div>
@@ -288,7 +288,7 @@
   const SUPABASE_KEY = "sb_publishable_Z1IyqYnsq-5_KrgztBOB7A_RKQXiV3M";
 
   let currentAdmin = null;
-  let allBadWords = [];       // semua data dari Supabase
+  let allBadWords = [];
   let showingAllBadWords = false;
   const BAD_WORDS_PREVIEW = 5;
 
@@ -321,18 +321,13 @@
     setTimeout(() => t.classList.remove('show'), 2600);
   }
 
-  // ═══════════════ RANDOM ID (7 karakter, huruf besar + angka) ═
   function generateRandomId() {
     const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
     let out = '';
-    for (let i = 0; i < 7; i++) {
-      out += chars.charAt(Math.floor(Math.random() * chars.length));
-    }
+    for (let i = 0; i < 7; i++) out += chars.charAt(Math.floor(Math.random() * chars.length));
     return out;
   }
 
-  // Pastikan admin punya custom_id; kalau belum ada, buatkan & simpan.
-  // Retry beberapa kali kalau kebetulan bentrok (unique constraint).
   async function ensureCustomId(admin) {
     if (admin.custom_id) return admin.custom_id;
     for (let attempt = 0; attempt < 5; attempt++) {
@@ -345,7 +340,6 @@
         if (updated && updated[0]) return updated[0].custom_id;
         return candidate;
       } catch (err) {
-        // kemungkinan duplikat custom_id, coba lagi dengan id baru
         console.warn('gagal membuat custom_id, mencoba lagi', err);
       }
     }
@@ -461,7 +455,7 @@
     document.getElementById('new-message-date').value = nowWIB.toISOString().slice(0, 10);
   }
 
-  // ═══════════════ ID SAYA (revoke only, ID acak baru) ═══════
+  // ═══════════════ ID SAYA ═══════════════════════════════════
   function setIdStatus(text, cls) {
     const el = document.getElementById('id-status');
     el.className = 'id-status' + (cls ? ' ' + cls : '');
@@ -480,10 +474,7 @@
       setIdStatus('Mengganti ID…', 'saving');
       try {
         const newId = await ensureCustomId({ ...currentAdmin, custom_id: null });
-        if (!newId) {
-          setIdStatus('Gagal membuat ID baru, coba lagi.', 'error');
-          return;
-        }
+        if (!newId) { setIdStatus('Gagal membuat ID baru, coba lagi.', 'error'); return; }
         currentAdmin.custom_id = newId;
         sessionStorage.setItem('wagg_admin', JSON.stringify(currentAdmin));
         document.getElementById('my-custom-id').value = newId;
@@ -509,7 +500,7 @@
       document.getElementById('open-minute').value = s.open_minute;
       document.getElementById('close-hour').value = s.close_hour;
       document.getElementById('close-minute').value = s.close_minute;
-      el.textContent = `Saat ini: buka ${pad(s.open_hour)}:${pad(s.open_minute)} WIB, tutup ${pad(s.close_hour)}:${pad(s.close_minute)} WIB.`;
+      el.textContent = '';
     } catch (err) {
       console.error(err);
       el.textContent = 'Gagal memuat jadwal.';
@@ -630,23 +621,55 @@
   function actionLabel(a) { return { add: 'Tambah', kick: 'Kick' }[a] || a; }
   function memberStatusLabel(s) { return { pending: 'Diproses', success: 'Berhasil', failed: 'Gagal' }[s] || s; }
 
+  const TRASH_ICON = `<svg viewBox="0 0 24 24" fill="currentColor"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>`;
+
   async function loadMemberActions() {
     const tbody = document.getElementById('member-action-table-body');
     try {
       const rows = await sbFetch(
         `group_actions?group_id=eq.${encodeURIComponent(currentAdmin.group)}&order=created_at.desc&limit=30`
       );
-      if (!rows.length) { tbody.innerHTML = '<tr><td colspan="4" class="empty-msg">Belum ada aktivitas.</td></tr>'; return; }
+      if (!rows.length) {
+        tbody.innerHTML = '<tr><td colspan="5" class="empty-msg">-</td></tr>';
+        return;
+      }
       tbody.innerHTML = rows.map(r => `
         <tr>
           <td>${escapeHtml(r.phone)}</td>
           <td>${actionLabel(r.action)}</td>
           <td><span class="badge-outline badge-${r.status}">${memberStatusLabel(r.status)}</span></td>
-          <td style="max-width:220px;white-space:pre-wrap;">${r.error ? escapeHtml(r.error) : '—'}</td>
+          <td style="max-width:180px;white-space:pre-wrap;">${r.error ? escapeHtml(r.error) : '—'}</td>
+          <td><button class="btn-delete" onclick="deleteMemberAction(${r.id})" title="Hapus">${TRASH_ICON}</button></td>
         </tr>`).join('');
     } catch (err) {
       console.error(err);
-      tbody.innerHTML = '<tr><td colspan="4" class="empty-msg">Gagal memuat data.</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="5" class="empty-msg">Gagal memuat data.</td></tr>';
+    }
+  }
+
+  async function deleteMemberAction(id) {
+    try {
+      await sbFetch(`group_actions?id=eq.${id}`, { method: 'DELETE', prefer: 'return=minimal' });
+      showToast('Riwayat dihapus.');
+      loadMemberActions();
+    } catch (err) {
+      console.error(err);
+      showToast('Gagal menghapus riwayat.');
+    }
+  }
+
+  async function clearAllMemberActions() {
+    if (!confirm('Hapus semua riwayat add/kick untuk grup ini?')) return;
+    try {
+      await sbFetch(
+        `group_actions?group_id=eq.${encodeURIComponent(currentAdmin.group)}`,
+        { method: 'DELETE', prefer: 'return=minimal' }
+      );
+      showToast('Semua riwayat dihapus.');
+      loadMemberActions();
+    } catch (err) {
+      console.error(err);
+      showToast('Gagal menghapus riwayat.');
     }
   }
 
@@ -701,16 +724,16 @@
       const rows = await sbFetch(
         `scheduled_messages?group_id=eq.${encodeURIComponent(currentAdmin.group)}&order=send_at.desc&limit=50`
       );
-      if (!rows.length) { tbody.innerHTML = '<tr><td colspan="4" class="empty-msg">Belum ada pesan terjadwal.</td></tr>'; return; }
+      if (!rows.length) {
+        tbody.innerHTML = '<tr><td colspan="4" class="empty-msg">-</td></tr>';
+        return;
+      }
       tbody.innerHTML = rows.map(r => `
         <tr>
           <td style="max-width:220px;white-space:pre-wrap;">${escapeHtml(r.message)}</td>
           <td>${utcISOToWIBLabel(r.send_at)}</td>
           <td><span class="badge-outline badge-${r.status}">${statusLabel(r.status)}</span></td>
-          <td>${r.status === 'pending'
-            ? `<button class="btn-delete" onclick="cancelScheduledMessage(${r.id})" title="Batalkan">
-                 <svg viewBox="0 0 24 24" fill="currentColor"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>
-               </button>` : '—'}</td>
+          <td><button class="btn-delete" onclick="deleteScheduledMessage(${r.id}, '${r.status}')" title="Hapus">${TRASH_ICON}</button></td>
         </tr>`).join('');
     } catch (err) {
       console.error(err);
@@ -720,6 +743,51 @@
 
   function statusLabel(s) {
     return { pending: 'Menunggu', sent: 'Terkirim', failed: 'Gagal', canceled: 'Dibatalkan' }[s] || s;
+  }
+
+  async function deleteScheduledMessage(id, status) {
+    const isPending = status === 'pending';
+    const confirmMsg = isPending
+      ? 'Batalkan dan hapus pesan terjadwal ini?'
+      : 'Hapus pesan ini dari riwayat?';
+    if (!confirm(confirmMsg)) return;
+
+    try {
+      if (isPending) {
+        // Untuk pending: update status ke canceled dulu (agar bot tidak mengirim), lalu hapus
+        await sbFetch(`scheduled_messages?id=eq.${id}`, {
+          method: 'PATCH', prefer: 'return=minimal',
+          body: JSON.stringify({ status: 'canceled' })
+        });
+      }
+      await sbFetch(`scheduled_messages?id=eq.${id}`, { method: 'DELETE', prefer: 'return=minimal' });
+      showToast(isPending ? 'Pesan dibatalkan dan dihapus.' : 'Pesan dihapus dari riwayat.');
+      loadScheduledMessages();
+    } catch (err) {
+      console.error(err);
+      showToast('Gagal menghapus pesan.');
+    }
+  }
+
+  async function clearAllScheduledMessages() {
+    if (!confirm('Hapus semua riwayat pesan terjadwal untuk grup ini?')) return;
+    try {
+      // Cancel semua yang pending agar bot tidak mengirim
+      await sbFetch(
+        `scheduled_messages?group_id=eq.${encodeURIComponent(currentAdmin.group)}&status=eq.pending`,
+        { method: 'PATCH', prefer: 'return=minimal', body: JSON.stringify({ status: 'canceled' }) }
+      );
+      // Hapus semua
+      await sbFetch(
+        `scheduled_messages?group_id=eq.${encodeURIComponent(currentAdmin.group)}`,
+        { method: 'DELETE', prefer: 'return=minimal' }
+      );
+      showToast('Semua pesan dihapus.');
+      loadScheduledMessages();
+    } catch (err) {
+      console.error(err);
+      showToast('Gagal menghapus pesan.');
+    }
   }
 
   async function addScheduledMessage() {
@@ -751,21 +819,6 @@
     } catch (err) {
       console.error(err);
       showToast('Gagal menjadwalkan pesan.');
-    }
-  }
-
-  async function cancelScheduledMessage(id) {
-    if (!confirm('Batalkan pesan terjadwal ini?')) return;
-    try {
-      await sbFetch(`scheduled_messages?id=eq.${id}`, {
-        method: 'PATCH', prefer: 'return=minimal',
-        body: JSON.stringify({ status: 'canceled' })
-      });
-      showToast('Pesan dibatalkan.');
-      loadScheduledMessages();
-    } catch (err) {
-      console.error(err);
-      showToast('Gagal membatalkan pesan.');
     }
   }
 
