@@ -148,7 +148,7 @@
 <div id="app-screen">
   <div class="topbar">
     <div class="topbar-left">
-      <div class="topbar-brand"><strong>WA Group Guard</strong></div>
+      <div class="topbar-brand"><strong>GroupGuard</strong></div>
       <div class="user-chip" id="user-chip">—</div>
     </div>
     <button class="btn-logout" onclick="handleLogout()" title="Keluar">
@@ -630,7 +630,7 @@
         `group_actions?group_id=eq.${encodeURIComponent(currentAdmin.group)}&order=created_at.desc&limit=30`
       );
       if (!rows.length) {
-        tbody.innerHTML = '<tr><td colspan="5" class="empty-msg">-</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="5" class="empty-msg">Belum ada aktivitas.</td></tr>';
         return;
       }
       tbody.innerHTML = rows.map(r => `
@@ -661,9 +661,13 @@
   async function clearAllMemberActions() {
     if (!confirm('Hapus semua riwayat add/kick untuk grup ini?')) return;
     try {
-      await sbFetch(
-        `group_actions?group_id=eq.${encodeURIComponent(currentAdmin.group)}`,
-        { method: 'DELETE', prefer: 'return=minimal' }
+      // Ambil semua ID dulu, lalu hapus satu per satu
+      const rows = await sbFetch(
+        `group_actions?group_id=eq.${encodeURIComponent(currentAdmin.group)}&select=id&limit=200`
+      );
+      if (!rows || rows.length === 0) { showToast('Tidak ada riwayat.'); return; }
+      await Promise.all(
+        rows.map(r => sbFetch(`group_actions?id=eq.${r.id}`, { method: 'DELETE', prefer: 'return=minimal' }))
       );
       showToast('Semua riwayat dihapus.');
       loadMemberActions();
@@ -725,7 +729,7 @@
         `scheduled_messages?group_id=eq.${encodeURIComponent(currentAdmin.group)}&order=send_at.desc&limit=50`
       );
       if (!rows.length) {
-        tbody.innerHTML = '<tr><td colspan="4" class="empty-msg">-</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="4" class="empty-msg">Belum ada pesan terjadwal.</td></tr>';
         return;
       }
       tbody.innerHTML = rows.map(r => `
@@ -772,15 +776,24 @@
   async function clearAllScheduledMessages() {
     if (!confirm('Hapus semua riwayat pesan terjadwal untuk grup ini?')) return;
     try {
-      // Cancel semua yang pending agar bot tidak mengirim
-      await sbFetch(
-        `scheduled_messages?group_id=eq.${encodeURIComponent(currentAdmin.group)}&status=eq.pending`,
-        { method: 'PATCH', prefer: 'return=minimal', body: JSON.stringify({ status: 'canceled' }) }
+      // Ambil semua record dulu
+      const rows = await sbFetch(
+        `scheduled_messages?group_id=eq.${encodeURIComponent(currentAdmin.group)}&select=id,status&limit=200`
       );
-      // Hapus semua
-      await sbFetch(
-        `scheduled_messages?group_id=eq.${encodeURIComponent(currentAdmin.group)}`,
-        { method: 'DELETE', prefer: 'return=minimal' }
+      if (!rows || rows.length === 0) { showToast('Tidak ada pesan.'); return; }
+
+      // Cancel yang masih pending agar bot tidak mengirim
+      const pendingIds = rows.filter(r => r.status === 'pending').map(r => r.id);
+      await Promise.all(
+        pendingIds.map(id => sbFetch(`scheduled_messages?id=eq.${id}`, {
+          method: 'PATCH', prefer: 'return=minimal',
+          body: JSON.stringify({ status: 'canceled' })
+        }))
+      );
+
+      // Hapus semua satu per satu
+      await Promise.all(
+        rows.map(r => sbFetch(`scheduled_messages?id=eq.${r.id}`, { method: 'DELETE', prefer: 'return=minimal' }))
       );
       showToast('Semua pesan dihapus.');
       loadScheduledMessages();
