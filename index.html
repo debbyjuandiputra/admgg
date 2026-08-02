@@ -1,0 +1,716 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>WA Group Guard — Admin</title>
+<style>
+  *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+  :root{
+    --red:#C0392B; --red-dark:#962d22; --red-light:#e74c3c;
+    --white:#FFFFFF; --off-white:#F9F9F9; --gray-100:#F2F2F2;
+    --gray-300:#D0D0D0; --gray-500:#9E9E9E; --text:#1A1A1A; --text-soft:#555;
+    --green:#27ae60;
+  }
+  body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:var(--off-white);color:var(--text);min-height:100vh;}
+
+  /* LOGIN */
+  #login-screen{display:flex;align-items:center;justify-content:center;min-height:100vh;padding:24px;}
+  .login-card{background:var(--white);border-radius:16px;box-shadow:0 4px 32px rgba(0,0,0,.1);padding:48px 40px 40px;width:100%;max-width:400px;}
+  .login-logo{margin-bottom:8px;}
+  .login-logo h1{font-size:24px;font-weight:800;letter-spacing:-.5px;color:var(--red);}
+  .login-sub{font-size:13px;color:var(--text-soft);margin-bottom:22px;}
+  .login-tabs{display:flex;background:var(--gray-100);border-radius:10px;padding:4px;margin-bottom:24px;}
+  .login-tab{flex:1;text-align:center;padding:8px 0;font-size:13px;font-weight:600;color:var(--text-soft);border-radius:7px;cursor:pointer;transition:background .2s,color .2s;user-select:none;}
+  .login-tab.active{background:var(--white);color:var(--red);box-shadow:0 1px 4px rgba(0,0,0,.08);}
+  .login-pane{display:none;}
+  .login-pane.active{display:block;}
+  .field{margin-bottom:18px;}
+  .field label{display:block;font-size:12px;font-weight:600;color:var(--text-soft);text-transform:uppercase;letter-spacing:.6px;margin-bottom:6px;}
+  .field input,.field select,.field textarea{width:100%;padding:11px 14px;border:1.5px solid var(--gray-300);border-radius:8px;font-size:15px;color:var(--text);background:var(--white);outline:none;transition:border-color .2s;font-family:inherit;}
+  .field input:focus,.field select:focus,.field textarea:focus{border-color:var(--red);}
+  .field-hint{font-size:11px;color:var(--gray-500);margin-top:5px;}
+  .btn-primary{width:100%;padding:13px;background:var(--red);color:#fff;border:none;border-radius:8px;font-size:15px;font-weight:600;cursor:pointer;transition:background .2s,transform .1s;margin-top:6px;}
+  .btn-primary:hover{background:var(--red-dark);}
+  .btn-primary:active{transform:scale(.98);}
+  .btn-primary:disabled{background:var(--gray-300);cursor:not-allowed;}
+  .login-error{margin-top:14px;background:#fdecea;border:1px solid #f5c6c2;color:var(--red-dark);border-radius:8px;padding:10px 14px;font-size:13px;display:none;}
+
+  /* APP */
+  #app-screen{display:none;min-height:100vh;flex-direction:column;}
+  .topbar{background:var(--white);border-bottom:1px solid var(--gray-100);padding:0 24px;height:56px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:10;}
+  .topbar-left{display:flex;align-items:center;gap:12px;}
+  .topbar-brand strong{color:var(--red);font-size:16px;font-weight:700;}
+  .user-chip{font-size:12px;color:var(--text-soft);background:var(--gray-100);padding:4px 10px;border-radius:20px;}
+  .btn-logout{background:none;border:1.5px solid var(--gray-300);border-radius:8px;padding:6px 8px;cursor:pointer;display:flex;align-items:center;color:var(--text-soft);transition:border-color .2s,color .2s,background .2s;}
+  .btn-logout:hover{border-color:var(--red);color:var(--red);background:#fdecea;}
+  .btn-logout svg{width:18px;height:18px;}
+
+  .app-body{flex:1;display:flex;flex-direction:column;align-items:center;padding:32px 20px 80px;gap:24px;}
+  .panel{max-width:640px;width:100%;}
+  .card{background:var(--white);border-radius:12px;box-shadow:0 2px 10px rgba(0,0,0,.05);margin-bottom:0;padding:24px;width:100%;}
+  .card-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;}
+  .card-header h3{font-size:16px;font-weight:700;}
+  .card-header p{font-size:12px;color:var(--text-soft);margin-top:2px;}
+  .badge{background:var(--red);color:#fff;border-radius:12px;padding:2px 8px;font-size:12px;font-weight:600;}
+  .badge-outline{border:1px solid var(--gray-300);color:var(--text-soft);border-radius:12px;padding:2px 8px;font-size:11px;font-weight:600;}
+  .badge-pending{background:#fff4e5;color:#b8720b;}
+  .badge-sent{background:#e8f5e9;color:#2e7d32;}
+  .badge-failed{background:#fdecea;color:var(--red-dark);}
+
+  .form-row{display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;}
+  .form-row .field{flex:1;min-width:110px;margin-bottom:0;}
+  .btn-secondary{padding:10px 18px;background:var(--red);color:#fff;border:none;border-radius:8px;font-weight:600;cursor:pointer;font-size:13px;white-space:nowrap;}
+  .btn-secondary:hover{background:var(--red-dark);}
+  .btn-secondary:disabled{background:var(--gray-300);cursor:not-allowed;}
+
+  .table-wrap{overflow-x:auto;margin-top:16px;}
+  table{width:100%;border-collapse:collapse;font-size:13px;}
+  table th,table td{border-bottom:1px solid var(--gray-100);padding:10px 8px;text-align:left;}
+  table th{font-weight:600;color:var(--text-soft);}
+  .empty-msg{text-align:center;color:var(--gray-500);padding:16px;}
+  .btn-delete{background:none;border:1px solid var(--red);border-radius:6px;padding:4px 6px;cursor:pointer;color:var(--red);display:inline-flex;align-items:center;justify-content:center;transition:background .2s,color .2s;}
+  .btn-delete:hover{background:var(--red);color:#fff;}
+  .btn-delete svg{width:15px;height:15px;}
+
+  /* lihat semua bad words */
+  .btn-lihat-semua{display:none;width:100%;margin-top:10px;padding:9px;background:none;border:1.5px solid var(--gray-300);border-radius:8px;font-size:13px;font-weight:600;color:var(--text-soft);cursor:pointer;transition:border-color .2s,color .2s,background .2s;}
+  .btn-lihat-semua:hover{border-color:var(--red);color:var(--red);background:#fdecea;}
+
+  .schedule-grid{display:grid;grid-template-columns:1fr 1fr;gap:20px;}
+  .schedule-box{border:1.5px solid var(--gray-100);border-radius:10px;padding:16px;}
+  .schedule-box h4{font-size:13px;font-weight:700;color:var(--text-soft);text-transform:uppercase;letter-spacing:.5px;margin-bottom:12px;}
+  .time-inputs{display:flex;gap:8px;align-items:center;}
+  .time-inputs input{width:100%;text-align:center;}
+  .time-sep{font-weight:700;color:var(--gray-500);}
+  .current-sched{font-size:12px;color:var(--text-soft);margin-top:4px;}
+
+  /* ID SAYA */
+  .id-row{display:flex;gap:10px;align-items:center;}
+  .id-row input{flex:1;font-family:'SFMono-Regular',Consolas,monospace;font-weight:700;letter-spacing:2px;text-transform:uppercase;background:var(--gray-100);cursor:default;}
+  .id-row .btn-secondary{flex-shrink:0;}
+  .id-row .btn-secondary:disabled{background:var(--gray-300);cursor:not-allowed;}
+  .id-status{font-size:11px;margin-top:6px;min-height:14px;color:var(--gray-500);display:flex;align-items:center;gap:6px;}
+  .id-status.saving{color:#b8720b;}
+  .id-status.saved{color:var(--green);}
+  .id-status.error{color:var(--red-dark);}
+  .id-dot{width:6px;height:6px;border-radius:50%;background:currentColor;flex-shrink:0;}
+
+  #toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(20px);background:#1A1A1A;color:#fff;padding:10px 20px;border-radius:24px;font-size:13px;font-weight:500;opacity:0;transition:opacity .3s,transform .3s;pointer-events:none;z-index:100;white-space:nowrap;max-width:90vw;text-align:center;}
+  #toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+
+  @media (max-width:480px){
+    .login-card{padding:36px 24px 28px;}
+    .card{padding:18px;}
+    .schedule-grid{grid-template-columns:1fr;}
+  }
+</style>
+</head>
+<body>
+
+<div id="login-screen">
+  <div class="login-card">
+    <div class="login-logo"><h1>WA Group Guard</h1></div>
+    <div class="login-sub">Masuk dengan ID grup + nomor admin, atau dengan ID Admin unikmu.</div>
+
+    <div class="login-tabs">
+      <div class="login-tab active" id="tab-standard" onclick="switchLoginTab('standard')">Grup + Nomor</div>
+      <div class="login-tab" id="tab-id" onclick="switchLoginTab('id')">ID Admin</div>
+    </div>
+
+    <div class="login-pane active" id="pane-standard">
+      <div class="field">
+        <label>ID Grup</label>
+        <input type="text" id="inp-group" placeholder="xxxxxxxx@g.us" autocomplete="off" />
+      </div>
+      <div class="field">
+        <label>Nomor Admin</label>
+        <input type="text" id="inp-phone" placeholder="628xxxxxxx" autocomplete="off" inputmode="numeric" />
+      </div>
+      <button class="btn-primary" id="btn-login" onclick="handleLogin()">Masuk</button>
+    </div>
+
+    <div class="login-pane" id="pane-id">
+      <div class="field">
+        <label>ID Admin</label>
+        <input type="text" id="inp-custom-id" placeholder="cth. 7K2PLXA" autocomplete="off" maxlength="7" style="text-transform:uppercase;letter-spacing:2px;font-weight:700;" />
+        <div class="field-hint">ID unik 7 karakter yang diberikan setelah login pertama kali.</div>
+      </div>
+      <button class="btn-primary" id="btn-login-id" onclick="handleLoginById()">Masuk</button>
+    </div>
+
+    <div class="login-error" id="login-error"></div>
+  </div>
+</div>
+
+<div id="app-screen">
+  <div class="topbar">
+    <div class="topbar-left">
+      <div class="topbar-brand"><strong>WA Group Guard</strong></div>
+      <div class="user-chip" id="user-chip">—</div>
+    </div>
+    <button class="btn-logout" onclick="handleLogout()" title="Keluar">
+      <svg viewBox="0 0 24 24" fill="currentColor"><path d="M10.09 15.59L11.5 17l5-5-5-5-1.41 1.41L12.67 11H3v2h9.67l-2.58 2.59zM19 3H5a2 2 0 0 0-2 2v4h2V5h14v14H5v-4H3v4a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V5a2 2 0 0 0-2-2z"/></svg>
+    </button>
+  </div>
+
+  <div class="app-body">
+
+    <!-- ID SAYA -->
+    <div class="panel">
+      <div class="card">
+        <div class="card-header">
+          <div>
+            <h3>ID Admin Saya</h3>
+            <p>Bisa dipakai untuk login cepat. ID tidak bisa diedit manual — tekan "Revoke ID" untuk mengganti dengan ID acak baru.</p>
+          </div>
+        </div>
+        <div class="id-row">
+          <input type="text" id="my-custom-id" maxlength="7" placeholder="Memuat…" readonly />
+          <button class="btn-secondary" id="btn-revoke-id" onclick="revokeCustomId()">Revoke ID</button>
+        </div>
+        <div class="id-status" id="id-status"></div>
+      </div>
+    </div>
+
+    <!-- JADWAL BUKA/TUTUP -->
+    <div class="panel">
+      <div class="card">
+        <div class="card-header">
+          <div>
+            <h3>Jadwal Grup</h3>
+            <p>Jam ditampilkan dan disimpan dalam WIB (Asia/Jakarta).</p>
+          </div>
+        </div>
+        <div class="schedule-grid">
+          <div class="schedule-box">
+            <h4>Buka Grup</h4>
+            <div class="time-inputs">
+              <input type="number" id="open-hour" min="0" max="23" placeholder="HH" />
+              <span class="time-sep">:</span>
+              <input type="number" id="open-minute" min="0" max="59" placeholder="MM" />
+            </div>
+          </div>
+          <div class="schedule-box">
+            <h4>Tutup Grup</h4>
+            <div class="time-inputs">
+              <input type="number" id="close-hour" min="0" max="23" placeholder="HH" />
+              <span class="time-sep">:</span>
+              <input type="number" id="close-minute" min="0" max="59" placeholder="MM" />
+            </div>
+          </div>
+        </div>
+        <div class="current-sched" id="current-sched">Memuat jadwal…</div>
+        <button class="btn-secondary" style="margin-top:16px;" onclick="saveSchedule()">Simpan Jadwal</button>
+      </div>
+    </div>
+
+    <!-- BAD WORDS -->
+    <div class="panel">
+      <div class="card">
+        <div class="card-header">
+          <div>
+            <h3>Kata Kasar <span class="badge" id="badword-count">0</span></h3>
+            <p>Daftar kata yang otomatis difilter bot di grup.</p>
+          </div>
+        </div>
+        <div class="form-row" style="margin-bottom:8px;">
+          <div class="field"><label>Tambah Kata</label><input type="text" id="new-badword" placeholder="kata baru" /></div>
+          <button class="btn-secondary" onclick="addBadWord()">Tambah</button>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Kata</th><th style="width:60px;">Hapus</th></tr></thead>
+            <tbody id="badword-table-body"><tr><td colspan="2" class="empty-msg">Memuat data…</td></tr></tbody>
+          </table>
+        </div>
+        <button class="btn-lihat-semua" id="btn-lihat-semua" onclick="toggleBadWords()"></button>
+      </div>
+    </div>
+
+    <!-- PESAN TERJADWAL -->
+    <div class="panel">
+      <div class="card">
+        <div class="card-header">
+          <div>
+            <h3>Kirim Pesan Terjadwal</h3>
+            <p>Pesan akan otomatis dikirim bot ke grup pada waktu WIB yang ditentukan.</p>
+          </div>
+        </div>
+        <div class="field">
+          <label>Pesan</label>
+          <textarea id="new-message" rows="3" placeholder="Tulis pesan yang akan dikirim ke grup…"></textarea>
+        </div>
+        <div class="form-row" style="margin-bottom:8px;">
+          <div class="field"><label>Tanggal</label><input type="date" id="new-message-date" /></div>
+          <div class="field"><label>Jam (WIB)</label><input type="time" id="new-message-time" /></div>
+          <button class="btn-secondary" onclick="addScheduledMessage()">Jadwalkan</button>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Pesan</th><th>Kirim (WIB)</th><th>Status</th><th style="width:60px;">Hapus</th></tr></thead>
+            <tbody id="message-table-body"><tr><td colspan="4" class="empty-msg">Memuat data…</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+  // const path = require('path');
+  // require('dotenv').config({
+  //   path: path.join(__dirname, '.env')
+  // });
+  // const SUPABASE_URL = process.env.SUPABASE_URL;
+  // const SUPABASE_KEY = process.env.SUPABASE_KEY;
+  
+  const SUPABASE_URL = "https://hgvsbbglmjrglcllownf.supabase.co";
+  const SUPABASE_KEY = "sb_publishable_Z1IyqYnsq-5_KrgztBOB7A_RKQXiV3M";
+
+  let currentAdmin = null;
+  let allBadWords = [];       // semua data dari Supabase
+  let showingAllBadWords = false;
+  const BAD_WORDS_PREVIEW = 5;
+
+  let idSaveTimer = null;
+  const ID_SAVE_DELAY_MS = 5000;
+
+  async function sbFetch(path, options = {}) {
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/${path}`, {
+      ...options,
+      headers: {
+        "apikey": SUPABASE_KEY,
+        "Authorization": `Bearer ${SUPABASE_KEY}`,
+        "Content-Type": "application/json",
+        "Prefer": options.prefer || "return=representation",
+        ...(options.headers || {})
+      }
+    });
+    if (!res.ok) {
+      const errText = await res.text().catch(() => res.statusText);
+      throw new Error(errText || `HTTP ${res.status}`);
+    }
+    if (res.status === 204) return null;
+    return res.json();
+  }
+
+  function showToast(msg) {
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.classList.add('show');
+    setTimeout(() => t.classList.remove('show'), 2600);
+  }
+
+  // ═══════════════ RANDOM ID (7 karakter, huruf besar + angka) ═
+  function generateRandomId() {
+    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+    let out = '';
+    for (let i = 0; i < 7; i++) {
+      out += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    return out;
+  }
+
+  // Pastikan admin punya custom_id; kalau belum ada, buatkan & simpan.
+  // Retry beberapa kali kalau kebetulan bentrok (unique constraint).
+  async function ensureCustomId(admin) {
+    if (admin.custom_id) return admin.custom_id;
+    for (let attempt = 0; attempt < 5; attempt++) {
+      const candidate = generateRandomId();
+      try {
+        const updated = await sbFetch(
+          `admins?phone=eq.${encodeURIComponent(admin.phone)}&group=eq.${encodeURIComponent(admin.group)}`,
+          { method: 'PATCH', body: JSON.stringify({ custom_id: candidate }) }
+        );
+        if (updated && updated[0]) return updated[0].custom_id;
+        return candidate;
+      } catch (err) {
+        // kemungkinan duplikat custom_id, coba lagi dengan id baru
+        console.warn('gagal membuat custom_id, mencoba lagi', err);
+      }
+    }
+    return null;
+  }
+
+  // ═══════════════ LOGIN / SESSION ═══════════════════════════
+  function switchLoginTab(tab) {
+    document.getElementById('tab-standard').classList.toggle('active', tab === 'standard');
+    document.getElementById('tab-id').classList.toggle('active', tab === 'id');
+    document.getElementById('pane-standard').classList.toggle('active', tab === 'standard');
+    document.getElementById('pane-id').classList.toggle('active', tab === 'id');
+    document.getElementById('login-error').style.display = 'none';
+  }
+
+  async function handleLogin() {
+    const group = document.getElementById('inp-group').value.trim();
+    const phone = document.getElementById('inp-phone').value.trim().replace(/[^0-9]/g, '');
+    const errDiv = document.getElementById('login-error');
+    const btn = document.getElementById('btn-login');
+    errDiv.style.display = 'none';
+
+    if (!group || !phone) {
+      errDiv.textContent = 'Isi ID grup dan nomor admin terlebih dahulu.';
+      errDiv.style.display = 'block';
+      return;
+    }
+
+    btn.disabled = true; btn.textContent = 'Memeriksa…';
+    try {
+      const rows = await sbFetch(
+        `admins?phone=eq.${encodeURIComponent(phone)}&group=eq.${encodeURIComponent(group)}&limit=1`
+      );
+      if (!rows || rows.length === 0) {
+        errDiv.textContent = 'ID grup atau nomor admin tidak terdaftar.';
+        errDiv.style.display = 'block';
+        return;
+      }
+      await finishLogin(rows[0]);
+    } catch (err) {
+      console.error(err);
+      errDiv.textContent = 'Gagal menghubungi server. Coba lagi.';
+      errDiv.style.display = 'block';
+    } finally {
+      btn.disabled = false; btn.textContent = 'Masuk';
+    }
+  }
+
+  async function handleLoginById() {
+    const customId = document.getElementById('inp-custom-id').value.trim().toUpperCase();
+    const errDiv = document.getElementById('login-error');
+    const btn = document.getElementById('btn-login-id');
+    errDiv.style.display = 'none';
+
+    if (!customId) {
+      errDiv.textContent = 'Masukkan ID Admin terlebih dahulu.';
+      errDiv.style.display = 'block';
+      return;
+    }
+
+    btn.disabled = true; btn.textContent = 'Memeriksa…';
+    try {
+      const rows = await sbFetch(`admins?custom_id=eq.${encodeURIComponent(customId)}&limit=1`);
+      if (!rows || rows.length === 0) {
+        errDiv.textContent = 'ID Admin tidak ditemukan.';
+        errDiv.style.display = 'block';
+        return;
+      }
+      await finishLogin(rows[0]);
+    } catch (err) {
+      console.error(err);
+      errDiv.textContent = 'Gagal menghubungi server. Coba lagi.';
+      errDiv.style.display = 'block';
+    } finally {
+      btn.disabled = false; btn.textContent = 'Masuk';
+    }
+  }
+
+  async function finishLogin(adminRow) {
+    currentAdmin = adminRow;
+    if (!currentAdmin.custom_id) {
+      const newId = await ensureCustomId(currentAdmin);
+      if (newId) currentAdmin.custom_id = newId;
+    }
+    sessionStorage.setItem('wagg_admin', JSON.stringify(currentAdmin));
+    enterApp();
+  }
+
+  function handleLogout() {
+    sessionStorage.removeItem('wagg_admin');
+    currentAdmin = null;
+    clearTimeout(idSaveTimer);
+    document.getElementById('app-screen').style.display = 'none';
+    document.getElementById('login-screen').style.display = 'flex';
+    document.getElementById('inp-phone').value = '';
+    document.getElementById('inp-group').value = '';
+    document.getElementById('inp-custom-id').value = '';
+  }
+
+  function enterApp() {
+    document.getElementById('login-screen').style.display = 'none';
+    document.getElementById('app-screen').style.display = 'flex';
+    document.getElementById('user-chip').textContent =
+      (currentAdmin.nama ? currentAdmin.nama + ' · ' : '') + currentAdmin.group;
+    document.getElementById('my-custom-id').value = currentAdmin.custom_id || '';
+    loadSchedule();
+    loadBadWords();
+    loadScheduledMessages();
+    const nowWIB = new Date(Date.now() + 7 * 3600 * 1000);
+    document.getElementById('new-message-date').value = nowWIB.toISOString().slice(0, 10);
+  }
+
+  // ═══════════════ ID SAYA (revoke only, ID acak baru) ═══════
+  function setIdStatus(text, cls) {
+    const el = document.getElementById('id-status');
+    el.className = 'id-status' + (cls ? ' ' + cls : '');
+    el.innerHTML = text ? `<span class="id-dot"></span>${text}` : '';
+  }
+
+  async function revokeCustomId() {
+    if (!confirm('Yakin ingin mengganti ID Admin? ID lama tidak akan bisa dipakai lagi untuk login.')) return;
+
+    const btn = document.getElementById('btn-revoke-id');
+    btn.disabled = true;
+    setIdStatus('Menunggu 5 detik sebelum mengganti…', 'saving');
+
+    clearTimeout(idSaveTimer);
+    idSaveTimer = setTimeout(async () => {
+      setIdStatus('Mengganti ID…', 'saving');
+      try {
+        const newId = await ensureCustomId({ ...currentAdmin, custom_id: null });
+        if (!newId) {
+          setIdStatus('Gagal membuat ID baru, coba lagi.', 'error');
+          return;
+        }
+        currentAdmin.custom_id = newId;
+        sessionStorage.setItem('wagg_admin', JSON.stringify(currentAdmin));
+        document.getElementById('my-custom-id').value = newId;
+        setIdStatus('ID baru berhasil dibuat.', 'saved');
+        showToast('ID Admin diganti.');
+      } catch (err) {
+        console.error(err);
+        setIdStatus('Gagal mengganti ID.', 'error');
+      } finally {
+        btn.disabled = false;
+      }
+    }, ID_SAVE_DELAY_MS);
+  }
+
+  // ═══════════════ JADWAL BUKA/TUTUP ═════════════════════════
+  async function loadSchedule() {
+    const el = document.getElementById('current-sched');
+    try {
+      const rows = await sbFetch(`group_schedule?group_id=eq.${encodeURIComponent(currentAdmin.group)}&limit=1`);
+      const s = rows && rows[0];
+      if (!s) { el.textContent = 'Belum ada jadwal untuk grup ini.'; return; }
+      document.getElementById('open-hour').value = s.open_hour;
+      document.getElementById('open-minute').value = s.open_minute;
+      document.getElementById('close-hour').value = s.close_hour;
+      document.getElementById('close-minute').value = s.close_minute;
+      el.textContent = `Saat ini: buka ${pad(s.open_hour)}:${pad(s.open_minute)} WIB, tutup ${pad(s.close_hour)}:${pad(s.close_minute)} WIB.`;
+    } catch (err) {
+      console.error(err);
+      el.textContent = 'Gagal memuat jadwal.';
+    }
+  }
+
+  function pad(n) { return String(n ?? 0).padStart(2, '0'); }
+
+  async function saveSchedule() {
+    const openHour   = parseInt(document.getElementById('open-hour').value, 10);
+    const openMinute = parseInt(document.getElementById('open-minute').value, 10);
+    const closeHour  = parseInt(document.getElementById('close-hour').value, 10);
+    const closeMinute= parseInt(document.getElementById('close-minute').value, 10);
+
+    if ([openHour, closeHour].some(h => isNaN(h) || h < 0 || h > 23) ||
+        [openMinute, closeMinute].some(m => isNaN(m) || m < 0 || m > 59)) {
+      showToast('Jam/menit tidak valid.');
+      return;
+    }
+
+    try {
+      await sbFetch(`group_schedule?group_id=eq.${encodeURIComponent(currentAdmin.group)}`, {
+        method: 'PATCH',
+        prefer: 'return=minimal',
+        body: JSON.stringify({
+          open_hour: openHour, open_minute: openMinute,
+          close_hour: closeHour, close_minute: closeMinute,
+          updated_at: new Date().toISOString()
+        })
+      });
+      showToast('Jadwal disimpan.');
+      loadSchedule();
+    } catch (err) {
+      console.error(err);
+      showToast('Gagal menyimpan jadwal.');
+    }
+  }
+
+  // ═══════════════ BAD WORDS ══════════════════════════════════
+  async function loadBadWords() {
+    const tbody = document.getElementById('badword-table-body');
+    try {
+      const rows = await sbFetch(`bad_words?select=id,word&is_active=eq.true&order=word.asc`);
+      allBadWords = rows || [];
+      showingAllBadWords = false;
+      renderBadWords();
+    } catch (err) {
+      console.error(err);
+      tbody.innerHTML = '<tr><td colspan="2" class="empty-msg">Gagal memuat data.</td></tr>';
+    }
+  }
+
+  function renderBadWords() {
+    const tbody = document.getElementById('badword-table-body');
+    const btn = document.getElementById('btn-lihat-semua');
+    const total = allBadWords.length;
+
+    document.getElementById('badword-count').textContent = total;
+
+    if (total === 0) {
+      tbody.innerHTML = '<tr><td colspan="2" class="empty-msg">Belum ada kata.</td></tr>';
+      btn.style.display = 'none';
+      return;
+    }
+
+    const tampil = showingAllBadWords ? allBadWords : allBadWords.slice(0, BAD_WORDS_PREVIEW);
+    tbody.innerHTML = tampil.map(r => `
+      <tr>
+        <td>${escapeHtml(r.word)}</td>
+        <td><button class="btn-delete" onclick="deleteBadWord(${r.id})" title="Hapus">
+          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>
+        </button></td>
+      </tr>`).join('');
+
+    if (total > BAD_WORDS_PREVIEW) {
+      btn.style.display = 'block';
+      btn.textContent = showingAllBadWords
+        ? 'Sembunyikan'
+        : `Lihat semua (${total - BAD_WORDS_PREVIEW} kata lagi)`;
+    } else {
+      btn.style.display = 'none';
+    }
+  }
+
+  function toggleBadWords() {
+    showingAllBadWords = !showingAllBadWords;
+    renderBadWords();
+  }
+
+  async function addBadWord() {
+    const input = document.getElementById('new-badword');
+    const word = input.value.trim().toLowerCase();
+    if (!word) { showToast('Masukkan kata terlebih dahulu.'); return; }
+    try {
+      await sbFetch('bad_words', { method: 'POST', body: JSON.stringify({ word, is_active: true }) });
+      input.value = '';
+      showToast('Kata ditambahkan.');
+      loadBadWords();
+    } catch (err) {
+      console.error(err);
+      showToast(String(err.message || err).includes('duplicate') ? 'Kata sudah ada.' : 'Gagal menambahkan kata.');
+    }
+  }
+
+  async function deleteBadWord(id) {
+    if (!confirm('Hapus kata ini dari filter?')) return;
+    try {
+      await sbFetch(`bad_words?id=eq.${id}`, { method: 'DELETE', prefer: 'return=minimal' });
+      showToast('Kata dihapus.');
+      loadBadWords();
+    } catch (err) {
+      console.error(err);
+      showToast('Gagal menghapus kata.');
+    }
+  }
+
+  // ═══════════════ PESAN TERJADWAL ═══════════════════════════
+  function wibInputToUTCISOString(dateStr, timeStr) {
+    const [y, mo, d] = dateStr.split('-').map(Number);
+    const [h, mi] = timeStr.split(':').map(Number);
+    const utcMs = Date.UTC(y, mo - 1, d, h, mi) - 7 * 3600 * 1000;
+    return new Date(utcMs).toISOString();
+  }
+
+  function utcISOToWIBLabel(iso) {
+    const d = new Date(new Date(iso).getTime() + 7 * 3600 * 1000);
+    const dd = String(d.getUTCDate()).padStart(2, '0');
+    const mm = String(d.getUTCMonth() + 1).padStart(2, '0');
+    const yyyy = d.getUTCFullYear();
+    const hh = String(d.getUTCHours()).padStart(2, '0');
+    const mi = String(d.getUTCMinutes()).padStart(2, '0');
+    return `${dd}/${mm}/${yyyy} ${hh}:${mi}`;
+  }
+
+  async function loadScheduledMessages() {
+    const tbody = document.getElementById('message-table-body');
+    try {
+      const rows = await sbFetch(
+        `scheduled_messages?group_id=eq.${encodeURIComponent(currentAdmin.group)}&order=send_at.desc&limit=50`
+      );
+      if (!rows.length) { tbody.innerHTML = '<tr><td colspan="4" class="empty-msg">Belum ada pesan terjadwal.</td></tr>'; return; }
+      tbody.innerHTML = rows.map(r => `
+        <tr>
+          <td style="max-width:220px;white-space:pre-wrap;">${escapeHtml(r.message)}</td>
+          <td>${utcISOToWIBLabel(r.send_at)}</td>
+          <td><span class="badge-outline badge-${r.status}">${statusLabel(r.status)}</span></td>
+          <td>${r.status === 'pending'
+            ? `<button class="btn-delete" onclick="cancelScheduledMessage(${r.id})" title="Batalkan">
+                 <svg viewBox="0 0 24 24" fill="currentColor"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>
+               </button>` : '—'}</td>
+        </tr>`).join('');
+    } catch (err) {
+      console.error(err);
+      tbody.innerHTML = '<tr><td colspan="4" class="empty-msg">Gagal memuat data.</td></tr>';
+    }
+  }
+
+  function statusLabel(s) {
+    return { pending: 'Menunggu', sent: 'Terkirim', failed: 'Gagal', canceled: 'Dibatalkan' }[s] || s;
+  }
+
+  async function addScheduledMessage() {
+    const message = document.getElementById('new-message').value.trim();
+    const date    = document.getElementById('new-message-date').value;
+    const time    = document.getElementById('new-message-time').value;
+    if (!message || !date || !time) { showToast('Lengkapi pesan, tanggal, dan jam.'); return; }
+
+    const sendAtISO = wibInputToUTCISOString(date, time);
+    if (new Date(sendAtISO).getTime() < Date.now() - 60000) {
+      showToast('Waktu kirim sudah lewat.'); return;
+    }
+
+    try {
+      await sbFetch('scheduled_messages', {
+        method: 'POST',
+        body: JSON.stringify({
+          group_id: currentAdmin.group,
+          message,
+          send_at: sendAtISO,
+          status: 'pending',
+          created_by: currentAdmin.phone
+        })
+      });
+      document.getElementById('new-message').value = '';
+      document.getElementById('new-message-time').value = '';
+      showToast('Pesan dijadwalkan.');
+      loadScheduledMessages();
+    } catch (err) {
+      console.error(err);
+      showToast('Gagal menjadwalkan pesan.');
+    }
+  }
+
+  async function cancelScheduledMessage(id) {
+    if (!confirm('Batalkan pesan terjadwal ini?')) return;
+    try {
+      await sbFetch(`scheduled_messages?id=eq.${id}`, {
+        method: 'PATCH', prefer: 'return=minimal',
+        body: JSON.stringify({ status: 'canceled' })
+      });
+      showToast('Pesan dibatalkan.');
+      loadScheduledMessages();
+    } catch (err) {
+      console.error(err);
+      showToast('Gagal membatalkan pesan.');
+    }
+  }
+
+  function escapeHtml(str) {
+    return String(str).replace(/[&<>"']/g, m => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[m]));
+  }
+
+  // ═══════════════ INIT ═════════════════════════════════════
+  (function init() {
+    const saved = sessionStorage.getItem('wagg_admin');
+    if (saved) {
+      try { currentAdmin = JSON.parse(saved); enterApp(); } catch (e) { sessionStorage.removeItem('wagg_admin'); }
+    }
+  })();
+</script>
+
+</body>
+</html>
