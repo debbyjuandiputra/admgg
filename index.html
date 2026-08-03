@@ -57,6 +57,7 @@
   .badge-pending{background:#fff4e5;color:#b8720b;}
   .badge-sent,.badge-success{background:#e8f5e9;color:#2e7d32;}
   .badge-failed{background:#fdecea;color:var(--red-dark);}
+  .badge-pin{background:#eef4ff;color:#2255cc;border-color:#cddcfb;}
 
   .form-row{display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;}
   .form-row .field{flex:1;min-width:110px;margin-bottom:0;}
@@ -99,6 +100,21 @@
   .id-status.saved{color:var(--green);}
   .id-status.error{color:var(--red-dark);}
   .id-dot{width:6px;height:6px;border-radius:50%;background:currentColor;flex-shrink:0;}
+
+  /* SERVER */
+  .server-status-text{font-size:13px;color:var(--text-soft);margin-top:2px;}
+  .server-status-text.down{color:var(--red-dark);font-weight:600;}
+  .server-btn-row{display:flex;gap:10px;margin-top:16px;flex-wrap:wrap;}
+  .server-btn-row .btn-secondary{flex:1;min-width:90px;}
+  .btn-server-restart{background:#b8720b !important;}
+  .btn-server-restart:hover{background:#96590a !important;}
+  .btn-server-stop{background:var(--red-dark) !important;}
+
+  /* Sematkan pesan */
+  .pin-row{display:flex;align-items:center;gap:10px;margin-bottom:8px;}
+  .pin-row input[type="checkbox"]{width:18px;height:18px;flex:none;accent-color:var(--red);cursor:pointer;}
+  .pin-row label{font-size:13px;font-weight:600;color:var(--text);cursor:pointer;}
+  #pin-duration-field{max-width:180px;}
 
   #toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(20px);background:#1A1A1A;color:#fff;padding:10px 20px;border-radius:24px;font-size:13px;font-weight:500;opacity:0;transition:opacity .3s,transform .3s;pointer-events:none;z-index:100;white-space:nowrap;max-width:90vw;text-align:center;}
   #toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
@@ -174,6 +190,24 @@
       </div>
     </div>
 
+    <!-- SERVER -->
+    <!-- <div class="panel">
+      <div class="card">
+        <div class="card-header">
+          <div>
+            <h3>Server</h3>
+          </div>
+          <span class="badge-outline" id="server-status-badge">—</span>
+        </div>
+        <div class="server-status-text" id="server-status-text">Memeriksa status server…</div>
+        <div class="server-btn-row">
+          <button class="btn-secondary" id="btn-server-start" onclick="serverPower('start')" disabled>Start</button>
+          <button class="btn-secondary btn-server-restart" id="btn-server-restart" onclick="serverPower('restart')" disabled>Restart</button>
+          <button class="btn-secondary btn-server-stop" id="btn-server-stop" onclick="serverPower('stop')" disabled>Stop</button>
+        </div>
+      </div>
+    </div> -->
+
     <!-- JADWAL BUKA/TUTUP -->
     <div class="panel">
       <div class="card">
@@ -242,6 +276,9 @@
           <button class="btn-secondary" onclick="queueMemberAction('add')">Tambah</button>
           <button class="btn-secondary" style="background:var(--red-dark);" onclick="queueMemberAction('kick')">Kick</button>
         </div>
+        <!-- <div class="field-hint" style="margin-bottom:8px;">
+          Jika nomor bersifat privasi dan gagal ditambahkan langsung, sistem <strong>tidak</strong> akan otomatis mengirim undangan ke chat pribadi nomor tersebut — ini untuk menghindari nomor bot terdeteksi spam oleh WhatsApp.
+        </div> -->
         <div class="table-wrap">
           <table>
             <thead><tr><th>Nomor</th><th>Aksi</th><th>Status</th><th>Keterangan</th><th style="width:50px;">Hapus</th></tr></thead>
@@ -260,10 +297,25 @@
           </div>
           <button class="btn-clear-all" onclick="clearAllScheduledMessages()">Hapus Riwayat</button>
         </div>
+
         <div class="field">
           <label>Pesan</label>
           <textarea id="new-message" rows="3"></textarea>
         </div>
+
+        <div class="pin-row">
+          <input type="checkbox" id="pin-message-checkbox" onchange="togglePinDurationField()" />
+          <label for="pin-message-checkbox">📌</label>
+        </div>
+        <div class="field" id="pin-duration-field" style="display:none;margin-bottom:14px;">
+          <label>Durasi Sematkan</label>
+          <select id="pin-duration">
+            <option value="24h">24 Jam</option>
+            <option value="7d">7 Hari</option>
+            <option value="30d">30 Hari</option>
+          </select>
+        </div>
+
         <div class="form-row" style="margin-bottom:8px;">
           <div class="field"><label>Tanggal</label><input type="date" id="new-message-date" /></div>
           <div class="field"><label>Jam (WIB)</label><input type="time" id="new-message-time" /></div>
@@ -271,8 +323,8 @@
         </div>
         <div class="table-wrap">
           <table>
-            <thead><tr><th>Pesan</th><th>Kirim (WIB)</th><th>Status</th><th style="width:60px;">Hapus</th></tr></thead>
-            <tbody id="message-table-body"><tr><td colspan="4" class="empty-msg">Memuat data…</td></tr></tbody>
+            <thead><tr><th>Pesan</th><th>Kirim (WIB)</th><th>Sematkan</th><th>Status</th><th style="width:60px;">Hapus</th></tr></thead>
+            <tbody id="message-table-body"><tr><td colspan="5" class="empty-msg">Memuat data…</td></tr></tbody>
           </table>
         </div>
       </div>
@@ -286,6 +338,18 @@
 <script>
   const SUPABASE_URL = "https://hgvsbbglmjrglcllownf.supabase.co";
   const SUPABASE_KEY = "sb_publishable_Z1IyqYnsq-5_KrgztBOB7A_RKQXiV3M";
+  // Edge Function proxy Pterodactyl — API key Pterodactyl TIDAK ada di sini,
+  // itu disimpan sebagai secret di Supabase (lihat supabase/functions/pterodactyl/index.ts)
+  const PTERO_FUNCTION_URL = `${SUPABASE_URL}/functions/v1/pterodactyl`;
+
+  // Kolom baru yang dibutuhkan di tabel scheduled_messages untuk fitur "Sematkan Pesan"
+  // (jalankan sekali di Supabase SQL editor):
+  //
+  // alter table scheduled_messages add column pin boolean not null default false;
+  // alter table scheduled_messages add column pin_duration text; -- '24h' | '7d' | '30d'
+  //
+  // Saat bot mengirim pesan dan pin = true, bot memanggil WhatsApp pin-message API
+  // dengan durasi sesuai pin_duration (WhatsApp hanya mendukung 24 jam / 7 hari / 30 hari).
 
   let currentAdmin = null;
   let allBadWords = [];
@@ -432,6 +496,8 @@
     sessionStorage.removeItem('wagg_admin');
     currentAdmin = null;
     clearTimeout(idSaveTimer);
+    clearInterval(window._memberActionPoll);
+    clearInterval(window._serverStatusPoll);
     document.getElementById('app-screen').style.display = 'none';
     document.getElementById('login-screen').style.display = 'flex';
     document.getElementById('inp-phone').value = '';
@@ -449,8 +515,11 @@
     loadBadWords();
     loadScheduledMessages();
     loadMemberActions();
+    loadServerStatus();
     clearInterval(window._memberActionPoll);
     window._memberActionPoll = setInterval(loadMemberActions, 20000);
+    clearInterval(window._serverStatusPoll);
+    window._serverStatusPoll = setInterval(loadServerStatus, 30000);
     const nowWIB = new Date(Date.now() + 7 * 3600 * 1000);
     document.getElementById('new-message-date').value = nowWIB.toISOString().slice(0, 10);
   }
@@ -487,6 +556,92 @@
         btn.disabled = false;
       }
     }, ID_SAVE_DELAY_MS);
+  }
+
+  // ═══════════════ SERVER (PTERODACTYL) ═══════════════════════
+  let serverPanelDown = false;
+
+  const SERVER_STATE_LABEL = {
+    running: 'Aktif',
+    offline: 'Nonaktif',
+    starting: 'Menyalakan…',
+    stopping: 'Mematikan…',
+  };
+
+  function setServerButtonsDisabled(disabled) {
+    ['btn-server-start', 'btn-server-restart', 'btn-server-stop'].forEach(id => {
+      document.getElementById(id).disabled = disabled;
+    });
+  }
+
+  async function loadServerStatus() {
+    const badge = document.getElementById('server-status-badge');
+    const text = document.getElementById('server-status-text');
+    if (!badge || !text) return; // panel server sedang dinonaktifkan (dikomentari)
+
+    if (!PTERO_FUNCTION_URL) {
+      badge.textContent = 'Kadaluarsa';
+      badge.className = 'badge-outline badge-failed';
+      text.textContent = 'Tidak Dapat Terhubung ke Server';
+      text.classList.add('down');
+      setServerButtonsDisabled(true);
+      serverPanelDown = true;
+      return;
+    }
+
+    try {
+      const res = await fetch(`${PTERO_FUNCTION_URL}?action=status`, {
+        headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` }
+      });
+      const data = await res.json().catch(() => null);
+
+      if (!res.ok || !data || data.ok !== true) throw new Error(data?.error || 'down');
+
+      serverPanelDown = false;
+      const state = data.state;
+      badge.textContent = SERVER_STATE_LABEL[state] || state || 'Tidak diketahui';
+      badge.className = 'badge-outline ' +
+        (state === 'running' ? 'badge-success' : state === 'offline' ? 'badge-failed' : 'badge-pending');
+      text.textContent = '';
+      text.classList.remove('down');
+
+      setServerButtonsDisabled(false);
+      document.getElementById('btn-server-start').disabled = (state === 'running' || state === 'starting');
+      document.getElementById('btn-server-restart').disabled = (state === 'offline');
+      document.getElementById('btn-server-stop').disabled = (state === 'offline' || state === 'stopping');
+    } catch (err) {
+      console.error(err);
+      serverPanelDown = true;
+      badge.textContent = 'Kadaluarsa';
+      badge.className = 'badge-outline badge-failed';
+      text.textContent = 'Tidak dapat menghubungi server';
+      text.classList.add('down');
+      setServerButtonsDisabled(true);
+    }
+  }
+
+  async function serverPower(signal) {
+    if (serverPanelDown || !PTERO_FUNCTION_URL) return;
+    setServerButtonsDisabled(true);
+    try {
+      const res = await fetch(`${PTERO_FUNCTION_URL}?action=power`, {
+        method: 'POST',
+        headers: {
+          apikey: SUPABASE_KEY,
+          Authorization: `Bearer ${SUPABASE_KEY}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ signal })
+      });
+      const data = await res.json().catch(() => null);
+      if (!res.ok || !data || data.ok !== true) throw new Error(data?.error || 'gagal');
+      showToast('Perintah ' + (signal === 'start' ? 'start' : signal === 'restart' ? 'restart' : 'stop') + ' dikirim.');
+    } catch (err) {
+      console.error(err);
+      showToast('Gagal mengirim perintah ke server.');
+    } finally {
+      setTimeout(loadServerStatus, 3000);
+    }
   }
 
   // ═══════════════ JADWAL BUKA/TUTUP ═════════════════════════
@@ -621,6 +776,25 @@
   function actionLabel(a) { return { add: 'Tambah', kick: 'Kick' }[a] || a; }
   function memberStatusLabel(s) { return { pending: 'Diproses', success: 'Berhasil', failed: 'Gagal' }[s] || s; }
 
+  // Pemetaan kode error dari bot/WhatsApp ke pesan yang mudah dipahami admin.
+  // Kode di sisi kiri harus sama persis (huruf kecil) dengan yang dikirim bot ke kolom `error`.
+  const MEMBER_ERROR_MESSAGES = {
+    'rate-overlimit': 'Terlalu banyak permintaan dalam waktu singkat. WhatsApp membatasi laju penambahan/kick anggota, tunggu beberapa menit lalu coba lagi.',
+    'rate_overlimit': 'Terlalu banyak permintaan dalam waktu singkat. WhatsApp membatasi laju penambahan/kick anggota, tunggu beberapa menit lalu coba lagi.',
+    'account_reachout_restricted': 'WhatsApp sedang membatasi nomor bot untuk menghubungi akun ini. Kurangi frekuensi penambahan anggota dan coba lagi nanti agar nomor bot tidak dianggap spam.',
+    'private': 'Nomor ini mengaktifkan pengaturan privasi grup sehingga tidak bisa ditambahkan langsung.',
+    'is_private': 'Nomor ini mengaktifkan pengaturan privasi grup sehingga tidak bisa ditambahkan langsung.',
+    'not_on_whatsapp': 'Nomor ini sepertinya belum terdaftar di WhatsApp. Periksa kembali nomornya.',
+    'not-authorized': 'Bot tidak memiliki izin admin di grup ini untuk melakukan aksi ini.',
+    'not_authorized': 'Bot tidak memiliki izin admin di grup ini untuk melakukan aksi ini.',
+  };
+
+  function formatMemberActionError(raw) {
+    if (!raw) return '—';
+    const key = String(raw).trim().toLowerCase();
+    return MEMBER_ERROR_MESSAGES[key] || escapeHtml(raw);
+  }
+
   const TRASH_ICON = `<svg viewBox="0 0 24 24" fill="currentColor"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>`;
 
   async function loadMemberActions() {
@@ -638,7 +812,7 @@
           <td>${escapeHtml(r.phone)}</td>
           <td>${actionLabel(r.action)}</td>
           <td><span class="badge-outline badge-${r.status}">${memberStatusLabel(r.status)}</span></td>
-          <td style="max-width:180px;white-space:pre-wrap;">${r.error ? escapeHtml(r.error) : '—'}</td>
+          <td style="max-width:220px;white-space:pre-wrap;">${r.error ? formatMemberActionError(r.error) : '—'}</td>
           <td><button class="btn-delete" onclick="deleteMemberAction(${r.id})" title="Hapus">${TRASH_ICON}</button></td>
         </tr>`).join('');
     } catch (err) {
@@ -705,6 +879,15 @@
   }
 
   // ═══════════════ PESAN TERJADWAL ═══════════════════════════
+  function togglePinDurationField() {
+    const checked = document.getElementById('pin-message-checkbox').checked;
+    document.getElementById('pin-duration-field').style.display = checked ? 'block' : 'none';
+  }
+
+  function pinDurationLabel(d) {
+    return { '24h': '24 Jam', '7d': '7 Hari', '30d': '30 Hari' }[d] || '—';
+  }
+
   function wibInputToUTCISOString(dateStr, timeStr) {
     const [y, mo, d] = dateStr.split('-').map(Number);
     const [h, mi] = timeStr.split(':').map(Number);
@@ -729,19 +912,20 @@
         `scheduled_messages?group_id=eq.${encodeURIComponent(currentAdmin.group)}&order=send_at.desc&limit=50`
       );
       if (!rows.length) {
-        tbody.innerHTML = '<tr><td colspan="4" class="empty-msg">Belum ada pesan terjadwal.</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="5" class="empty-msg">Belum ada pesan terjadwal.</td></tr>';
         return;
       }
       tbody.innerHTML = rows.map(r => `
         <tr>
           <td style="max-width:220px;white-space:pre-wrap;">${escapeHtml(r.message)}</td>
           <td>${utcISOToWIBLabel(r.send_at)}</td>
+          <td>${r.pin ? `<span class="badge-outline badge-pin">${pinDurationLabel(r.pin_duration)}</span>` : '—'}</td>
           <td><span class="badge-outline badge-${r.status}">${statusLabel(r.status)}</span></td>
           <td><button class="btn-delete" onclick="deleteScheduledMessage(${r.id}, '${r.status}')" title="Hapus">${TRASH_ICON}</button></td>
         </tr>`).join('');
     } catch (err) {
       console.error(err);
-      tbody.innerHTML = '<tr><td colspan="4" class="empty-msg">Gagal memuat data.</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="5" class="empty-msg">Gagal memuat data.</td></tr>';
     }
   }
 
@@ -807,6 +991,9 @@
     const message = document.getElementById('new-message').value.trim();
     const date    = document.getElementById('new-message-date').value;
     const time    = document.getElementById('new-message-time').value;
+    const pin     = document.getElementById('pin-message-checkbox').checked;
+    const pinDuration = pin ? document.getElementById('pin-duration').value : null;
+
     if (!message || !date || !time) { showToast('Lengkapi pesan, tanggal, dan jam.'); return; }
 
     const sendAtISO = wibInputToUTCISOString(date, time);
@@ -822,12 +1009,16 @@
           message,
           send_at: sendAtISO,
           status: 'pending',
-          created_by: currentAdmin.phone
+          created_by: currentAdmin.phone,
+          pin,
+          pin_duration: pinDuration
         })
       });
       document.getElementById('new-message').value = '';
       document.getElementById('new-message-time').value = '';
-      showToast('Pesan dijadwalkan.');
+      document.getElementById('pin-message-checkbox').checked = false;
+      togglePinDurationField();
+      showToast(pin ? `Pesan dijadwalkan & akan disematkan (${pinDurationLabel(pinDuration)}).` : 'Pesan dijadwalkan.');
       loadScheduledMessages();
     } catch (err) {
       console.error(err);
