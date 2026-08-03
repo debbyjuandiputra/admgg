@@ -106,8 +106,8 @@
   .server-status-text.down{color:var(--red-dark);font-weight:600;}
   .server-btn-row{display:flex;gap:10px;margin-top:16px;flex-wrap:wrap;}
   .server-btn-row .btn-secondary{flex:1;min-width:90px;}
-  .btn-server-restart{background:#b8720b !important;}
-  .btn-server-restart:hover{background:#96590a !important;}
+  .btn-server-restart{background:#716f6e !important;}
+  .btn-server-restart:hover{background:#434242 !important;}
   .btn-server-stop{background:var(--red-dark) !important;}
 
   /* Sematkan pesan */
@@ -191,7 +191,7 @@
     </div>
 
     <!-- SERVER -->
-    <!-- <div class="panel">
+    <div class="panel">
       <div class="card">
         <div class="card-header">
           <div>
@@ -206,7 +206,7 @@
           <button class="btn-secondary btn-server-stop" id="btn-server-stop" onclick="serverPower('stop')" disabled>Stop</button>
         </div>
       </div>
-    </div> -->
+    </div>
 
     <!-- JADWAL BUKA/TUTUP -->
     <div class="panel">
@@ -303,7 +303,7 @@
           <textarea id="new-message" rows="3"></textarea>
         </div>
 
-        <div class="pin-row">
+        <!-- <div class="pin-row">
           <input type="checkbox" id="pin-message-checkbox" onchange="togglePinDurationField()" />
           <label for="pin-message-checkbox">📌</label>
         </div>
@@ -314,7 +314,7 @@
             <option value="7d">7 Hari</option>
             <option value="30d">30 Hari</option>
           </select>
-        </div>
+        </div> -->
 
         <div class="form-row" style="margin-bottom:8px;">
           <div class="field"><label>Tanggal</label><input type="date" id="new-message-date" /></div>
@@ -323,13 +323,13 @@
         </div>
         <div class="table-wrap">
           <table>
-            <thead><tr><th>Pesan</th><th>Kirim (WIB)</th><th>Sematkan</th><th>Status</th><th style="width:60px;">Hapus</th></tr></thead>
+            <thead><tr><th>Pesan</th><th>Kirim (WIB)</th><!--<th>Sematkan</th>--><th>Status</th><th style="width:60px;">Hapus</th></tr></thead>
             <tbody id="message-table-body"><tr><td colspan="5" class="empty-msg">Memuat data…</td></tr></tbody>
           </table>
         </div>
       </div>
     </div>
-
+<!--  -->
   </div>
 </div>
 
@@ -339,8 +339,8 @@
   const SUPABASE_URL = "https://hgvsbbglmjrglcllownf.supabase.co";
   const SUPABASE_KEY = "sb_publishable_Z1IyqYnsq-5_KrgztBOB7A_RKQXiV3M";
   // Edge Function proxy Pterodactyl — API key Pterodactyl TIDAK ada di sini,
-  // itu disimpan sebagai secret di Supabase (lihat supabase/functions/pterodactyl/index.ts)
-  const PTERO_FUNCTION_URL = `${SUPABASE_URL}/functions/v1/pterodactyl`;
+  // itu disimpan sebagai secret di Supabase (lihat supabase/functions/plta/index.ts)
+  const PTERO_FUNCTION_URL = `${SUPABASE_URL}/functions/v1/plta`;
 
   // Kolom baru yang dibutuhkan di tabel scheduled_messages untuk fitur "Sematkan Pesan"
   // (jalankan sekali di Supabase SQL editor):
@@ -564,7 +564,7 @@
   const SERVER_STATE_LABEL = {
     running: 'Aktif',
     offline: 'Nonaktif',
-    starting: 'Menyalakan…',
+    starting: 'Aktif',
     stopping: 'Mematikan…',
   };
 
@@ -601,13 +601,13 @@
       const state = data.state;
       badge.textContent = SERVER_STATE_LABEL[state] || state || 'Tidak diketahui';
       badge.className = 'badge-outline ' +
-        (state === 'running' ? 'badge-success' : state === 'offline' ? 'badge-failed' : 'badge-pending');
+        (state === 'running' || state === 'starting' ? 'badge-success' : state === 'offline' ? 'badge-failed' : 'badge-pending');
       text.textContent = '';
       text.classList.remove('down');
 
       setServerButtonsDisabled(false);
       document.getElementById('btn-server-start').disabled = (state === 'running' || state === 'starting');
-      document.getElementById('btn-server-restart').disabled = (state === 'offline');
+      document.getElementById('btn-server-restart').disabled = (state === 'offline' || state === 'stopping');
       document.getElementById('btn-server-stop').disabled = (state === 'offline' || state === 'stopping');
     } catch (err) {
       console.error(err);
