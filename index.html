@@ -57,7 +57,6 @@
   .badge-pending{background:#fff4e5;color:#b8720b;}
   .badge-sent,.badge-success{background:#e8f5e9;color:#2e7d32;}
   .badge-failed{background:#fdecea;color:var(--red-dark);}
-  .badge-pin{background:#eef4ff;color:#2255cc;border-color:#cddcfb;}
 
   .form-row{display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;}
   .form-row .field{flex:1;min-width:110px;margin-bottom:0;}
@@ -109,12 +108,6 @@
   .btn-server-restart{background:#716f6e !important;}
   .btn-server-restart:hover{background:#434242 !important;}
   .btn-server-stop{background:var(--red-dark) !important;}
-
-  /* Sematkan pesan */
-  .pin-row{display:flex;align-items:center;gap:10px;margin-bottom:8px;}
-  .pin-row input[type="checkbox"]{width:18px;height:18px;flex:none;accent-color:var(--red);cursor:pointer;}
-  .pin-row label{font-size:13px;font-weight:600;color:var(--text);cursor:pointer;}
-  #pin-duration-field{max-width:180px;}
 
   #toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(20px);background:#1A1A1A;color:#fff;padding:10px 20px;border-radius:24px;font-size:13px;font-weight:500;opacity:0;transition:opacity .3s,transform .3s;pointer-events:none;z-index:100;white-space:nowrap;max-width:90vw;text-align:center;}
   #toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
@@ -303,19 +296,6 @@
           <textarea id="new-message" rows="3"></textarea>
         </div>
 
-        <!-- <div class="pin-row">
-          <input type="checkbox" id="pin-message-checkbox" onchange="togglePinDurationField()" />
-          <label for="pin-message-checkbox">📌</label>
-        </div>
-        <div class="field" id="pin-duration-field" style="display:none;margin-bottom:14px;">
-          <label>Durasi Sematkan</label>
-          <select id="pin-duration">
-            <option value="24h">24 Jam</option>
-            <option value="7d">7 Hari</option>
-            <option value="30d">30 Hari</option>
-          </select>
-        </div> -->
-
         <div class="form-row" style="margin-bottom:8px;">
           <div class="field"><label>Tanggal</label><input type="date" id="new-message-date" /></div>
           <div class="field"><label>Jam (WIB)</label><input type="time" id="new-message-time" /></div>
@@ -323,8 +303,8 @@
         </div>
         <div class="table-wrap">
           <table>
-            <thead><tr><th>Pesan</th><th>Kirim (WIB)</th><!--<th>Sematkan</th>--><th>Status</th><th style="width:60px;">Hapus</th></tr></thead>
-            <tbody id="message-table-body"><tr><td colspan="5" class="empty-msg">Memuat data…</td></tr></tbody>
+            <thead><tr><th>Pesan</th><th>Kirim (WIB)</th><th>Status</th><th style="width:60px;">Hapus</th></tr></thead>
+            <tbody id="message-table-body"><tr><td colspan="4" class="empty-msg">Memuat data…</td></tr></tbody>
           </table>
         </div>
       </div>
@@ -341,15 +321,6 @@
   // Edge Function proxy Pterodactyl — API key Pterodactyl TIDAK ada di sini,
   // itu disimpan sebagai secret di Supabase (lihat supabase/functions/plta/index.ts)
   const PTERO_FUNCTION_URL = `${SUPABASE_URL}/functions/v1/plta`;
-
-  // Kolom baru yang dibutuhkan di tabel scheduled_messages untuk fitur "Sematkan Pesan"
-  // (jalankan sekali di Supabase SQL editor):
-  //
-  // alter table scheduled_messages add column pin boolean not null default false;
-  // alter table scheduled_messages add column pin_duration text; -- '24h' | '7d' | '30d'
-  //
-  // Saat bot mengirim pesan dan pin = true, bot memanggil WhatsApp pin-message API
-  // dengan durasi sesuai pin_duration (WhatsApp hanya mendukung 24 jam / 7 hari / 30 hari).
 
   let currentAdmin = null;
   let allBadWords = [];
@@ -817,7 +788,7 @@
         </tr>`).join('');
     } catch (err) {
       console.error(err);
-      tbody.innerHTML = '<tr><td colspan="5" class="empty-msg">Gagal memuat data.</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="4" class="empty-msg">Gagal memuat data.</td></tr>';
     }
   }
 
@@ -879,15 +850,6 @@
   }
 
   // ═══════════════ PESAN TERJADWAL ═══════════════════════════
-  function togglePinDurationField() {
-    const checked = document.getElementById('pin-message-checkbox').checked;
-    document.getElementById('pin-duration-field').style.display = checked ? 'block' : 'none';
-  }
-
-  function pinDurationLabel(d) {
-    return { '24h': '24 Jam', '7d': '7 Hari', '30d': '30 Hari' }[d] || '—';
-  }
-
   function wibInputToUTCISOString(dateStr, timeStr) {
     const [y, mo, d] = dateStr.split('-').map(Number);
     const [h, mi] = timeStr.split(':').map(Number);
@@ -912,20 +874,19 @@
         `scheduled_messages?group_id=eq.${encodeURIComponent(currentAdmin.group)}&order=send_at.desc&limit=50`
       );
       if (!rows.length) {
-        tbody.innerHTML = '<tr><td colspan="5" class="empty-msg">Belum ada pesan terjadwal.</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="4" class="empty-msg">Belum ada pesan terjadwal.</td></tr>';
         return;
       }
       tbody.innerHTML = rows.map(r => `
         <tr>
           <td style="max-width:220px;white-space:pre-wrap;">${escapeHtml(r.message)}</td>
           <td>${utcISOToWIBLabel(r.send_at)}</td>
-          <td>${r.pin ? `<span class="badge-outline badge-pin">${pinDurationLabel(r.pin_duration)}</span>` : '—'}</td>
           <td><span class="badge-outline badge-${r.status}">${statusLabel(r.status)}</span></td>
           <td><button class="btn-delete" onclick="deleteScheduledMessage(${r.id}, '${r.status}')" title="Hapus">${TRASH_ICON}</button></td>
         </tr>`).join('');
     } catch (err) {
       console.error(err);
-      tbody.innerHTML = '<tr><td colspan="5" class="empty-msg">Gagal memuat data.</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="4" class="empty-msg">Gagal memuat data.</td></tr>';
     }
   }
 
@@ -989,16 +950,19 @@
 
   async function addScheduledMessage() {
     const message = document.getElementById('new-message').value.trim();
-    const date    = document.getElementById('new-message-date').value;
-    const time    = document.getElementById('new-message-time').value;
-    const pin     = document.getElementById('pin-message-checkbox').checked;
-    const pinDuration = pin ? document.getElementById('pin-duration').value : null;
+    const date = document.getElementById('new-message-date').value;
+    const time = document.getElementById('new-message-time').value;
 
-    if (!message || !date || !time) { showToast('Lengkapi pesan, tanggal, dan jam.'); return; }
+    if (!message || !date || !time) {
+      showToast('Lengkapi pesan, tanggal, dan jam.');
+      return;
+    }
 
     const sendAtISO = wibInputToUTCISOString(date, time);
+
     if (new Date(sendAtISO).getTime() < Date.now() - 60000) {
-      showToast('Waktu kirim sudah lewat.'); return;
+      showToast('Waktu kirim sudah lewat.');
+      return;
     }
 
     try {
@@ -1009,16 +973,14 @@
           message,
           send_at: sendAtISO,
           status: 'pending',
-          created_by: currentAdmin.phone,
-          pin,
-          pin_duration: pinDuration
+          created_by: currentAdmin.phone
         })
       });
+
       document.getElementById('new-message').value = '';
       document.getElementById('new-message-time').value = '';
-      document.getElementById('pin-message-checkbox').checked = false;
-      togglePinDurationField();
-      showToast(pin ? `Pesan dijadwalkan & akan disematkan (${pinDurationLabel(pinDuration)}).` : 'Pesan dijadwalkan.');
+
+      showToast('Pesan dijadwalkan.');
       loadScheduledMessages();
     } catch (err) {
       console.error(err);
